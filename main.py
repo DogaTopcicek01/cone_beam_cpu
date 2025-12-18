@@ -6,8 +6,9 @@ from datetime import datetime
 import logging
 from pathlib import Path
 from phantom import gen_shepp_logan_3d
-from projections import compute_sys_matrix, forward_project_numba, back_project_numba
-from matrix import adam_reconstruction_autograd
+from functions import forward_project_numba, back_project_numba
+from matrix  import compute_sys_matrix
+from gd_adam import adam_reconstruction_autograd
 
 # Setup logging - will be reconfigured in main()
 logging.basicConfig(level=logging.WARNING)  # Temporary, will be reset
