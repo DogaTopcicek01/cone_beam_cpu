@@ -38,6 +38,6 @@ def adam_reconstruction_autograd(sino, A, img_params, sino_params,
         loss_history.append(loss.item())
         
         if iteration % 10 == 0:
-          logger.info(f"Iter {iteration:3d}: loss = {loss.item():.6e}")
+            logger.info(f"Iter {iteration:3d}: loss = {loss.item():.6e}")
     
     return recon.detach(), loss_history
