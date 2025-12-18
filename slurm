@@ -53,7 +53,7 @@ echo "Pre-warming Numba compilation..."
 python -c "
 import numpy as np
 from numba import jit
-@jit(nopython=True, parallel=True, fastmath=True, cache=True)
+@jit(nopython=True, parallel=True, fastmath=True, cache=True)  # ADDED cache=True
 def warmup_func(x):
     return x * 2
 result = warmup_func(np.ones((10,10,10), dtype=np.float32))
@@ -83,7 +83,7 @@ time python main.py \
     --block_size=2 2 2 \
     --phantom_scale=1.0 \
     --skip_adjoint_test \
-    --output_dir=frontier_output_16cpu_${SLURM_JOB_ID}
+    --output_dir=frontier_output_16cpu_${SLURM_JOB_ID}  # YOUR NAME IS BETTER
 
 echo "=========================================="
 echo "Job completed: $(date)"
