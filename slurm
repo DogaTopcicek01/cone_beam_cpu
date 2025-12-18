@@ -1,15 +1,15 @@
 #!/bin/bash
 #SBATCH -A csc662        
-#SBATCH -J cone_beam_16cpu  # Changed job name
+#SBATCH -J cone_beam_16cpu
 #SBATCH --nodes=1                       
 #SBATCH --gres=gpu:1                    
 #SBATCH --ntasks-per-node=1             
-#SBATCH --cpus-per-task=16              # ← CHANGED to 16 CPUs
-#SBATCH --mem=64G                       # ← ADDED: Less memory for test
-#SBATCH -t 00:30:00                     # ← CHANGED: 30 min (shorter)
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=64G
+#SBATCH -t 00:30:00
 #SBATCH -q debug                        
-#SBATCH -o cone_beam_16cpu-%j.out       # ← CHANGED output name  
-#SBATCH -e cone_beam_16cpu-%j.err       # ← CHANGED error name
+#SBATCH -o cone_beam_16cpu-%j.out
+#SBATCH -e cone_beam_16cpu-%j.err
 
 # ============================================================
 # 1. LOAD MODULES (simplified for single GPU)
@@ -17,11 +17,23 @@
 module load PrgEnv-gnu
 module load rocm/6.3.1
 module load craype-accel-amd-gfx90a
-
 module unload darshan-runtime
 
 # ============================================================
-# 2. SETUP PYTHON ENVIRONMENT
+# 2. SET ENVIRONMENT VARIABLES (MOVE HERE!)
+# ============================================================
+export NUMBA_THREADING_LAYER='omp'
+export MKL_NUM_THREADS=1
+export OMP_PROC_BIND='spread'
+export OMP_PLACES='threads'
+export NUMBA_NUM_THREADS=16
+export OMP_NUM_THREADS=16
+export FI_CXI_DEFAULT_CQ_SIZE=131072
+export FI_CXI_RX_MATCH_MODE=hybrid
+export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+
+# ============================================================
+# 3. SETUP PYTHON ENVIRONMENT
 # ============================================================
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate /lustre/orion/csc662/world-shared/topcicekd/pytorch_env
@@ -31,36 +43,34 @@ echo "PyTorch version: $(python -c 'import torch; print(torch.__version__)')"
 echo "Numba version: $(python -c 'import numba; print(numba.__version__)')"
 
 # ============================================================
-# 3. CPU/GPU OPTIMIZATION FLAGS
+# 4. PRE-WARM NUMBA
 # ============================================================
 echo "Setting up for $SLURM_CPUS_PER_TASK CPU cores"
-
-# Set threads for Numba parallel execution
-export NUMBA_NUM_THREADS=$SLURM_CPUS_PER_TASK
-export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
-
-# GPU memory optimization
-export FI_CXI_DEFAULT_CQ_SIZE=131072
-export FI_CXI_RX_MATCH_MODE=hybrid
-export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
-
 echo "NUMBA_NUM_THREADS = $NUMBA_NUM_THREADS"
 echo "OMP_NUM_THREADS = $OMP_NUM_THREADS"
 
-# ============================================================
-# 4. RUN YOUR SINGLE-GPU CODE
-# ============================================================
+echo "Pre-warming Numba compilation..."
+python -c "
+import numpy as np
+from numba import jit
+@jit(nopython=True, parallel=True, fastmath=True, cache=True)
+def warmup_func(x):
+    return x * 2
+result = warmup_func(np.ones((10,10,10), dtype=np.float32))
+print('Numba warmed up (result shape:', result.shape, ')')
+"
 
+# ============================================================
+# 5. RUN YOUR SINGLE-GPU CODE
+# ============================================================
 echo "=========================================="
-echo "Starting cone beam CT reconstruction (16 CPU cores)"
+echo "Starting cone beam CT reconstruction"
 echo "Job ID: $SLURM_JOB_ID"
 echo "Running on: $(hostname)"
 echo "CPU cores: $SLURM_CPUS_PER_TASK"
 echo "Date: $(date)"
 echo "=========================================="
 
-# Run your single-GPU code with command-line arguments
-# Run your single-GPU code with ALL command-line arguments
 time python main.py \
     --device=cuda \
     --iterations=100 \
@@ -80,5 +90,9 @@ echo "Job completed: $(date)"
 echo "=========================================="
 
 # Show output files
-echo "Output files created in frontier_output_16cpu_${SLURM_JOB_ID}/:"
+echo -e "\nChecking output directory..."
 ls -lh frontier_output_16cpu_${SLURM_JOB_ID}/ 2>/dev/null || echo "No output directory found"
+
+# Quick check of log file
+echo -e "\nLast 10 lines of log file:"
+tail -10 frontier_output_16cpu_${SLURM_JOB_ID}/*.log 2>/dev/null || echo "No log file found yet"
