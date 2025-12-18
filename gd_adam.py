@@ -1,7 +1,7 @@
 import torch
 import torch.optim as optim
 import logging  # ADD THIS
-from projections import cone_beam_projector
+from functions import cone_beam_projector
 logger = logging.getLogger(__name__)
 
 def adam_reconstruction_autograd(sino, A, img_params, sino_params,
