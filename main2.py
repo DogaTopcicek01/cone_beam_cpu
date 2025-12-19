@@ -11,9 +11,7 @@ from functions import forward_project_numba, back_project_numba
 from matrix import compute_sys_matrix
 from gd_adam import adam_reconstruction_autograd
 
-# Temporary logging (reconfigured in main)
-logging.basicConfig(level=logging.WARNING)
-logger = logging.getLogger(__name__)
+
 
 # ============================================================
 # HELPER CLASSES
@@ -120,8 +118,6 @@ def main():
     # ============================================================
     # LOGGING
     # ============================================================
-    for h in logger.handlers[:]:
-        logger.removeHandler(h)
 
     logging.basicConfig(
         level=logging.INFO,
@@ -130,7 +126,10 @@ def main():
             logging.FileHandler(log_file),
             logging.StreamHandler()
         ],
+        force = True,
     )
+
+    logger = logging.getLogger(__name__)
 
     logger.info(f"PWD: {os.getcwd()}")
     logger.info(f"SCRIPT_DIR: {SCRIPT_DIR}")
